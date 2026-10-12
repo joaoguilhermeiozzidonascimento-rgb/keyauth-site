@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>KeyAuth</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+    :root {
+        --bg: #0a0c0d; --panel: #101314; --border: #1a2624;
+        --accent: #00e6b3; --accent-dim: #007a60;
+        --text: #d9e2e0; --dim: #6b7a78; --red: #f25c5c;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+    header { display: flex; justify-content: space-between; align-items: center; padding: 16px 28px; border-bottom: 1px solid var(--border); background: var(--panel); }
+    header h1 { font-size: 16px; color: var(--accent); letter-spacing: 2px; }
+    header .ver { color: var(--accent); font-size: 12px; padding: 4px 10px; border: 1px solid var(--accent-dim); border-radius: 10px; }
+    main { padding: 28px; max-width: 1200px; margin: 0 auto; }
+    .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 20px; }
+    .panel h2 { font-size: 14px; color: var(--accent); margin-bottom: 14px; letter-spacing: 1px; }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+    .field { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 140px; }
+    label { font-size: 12px; color: var(--dim); }
+    input, select { background: #0a0e0e; border: 1px solid var(--border); border-radius: 4px; padding: 9px 12px; color: var(--text); font-size: 13px; outline: none; }
+    input:focus, select:focus { border-color: var(--accent-dim); }
+    button { background: #0c1514; border: 1px solid var(--accent-dim); color: var(--accent); padding: 10px 20px; border-radius: 4px; font-size: 13px; cursor: pointer; }
+    button:hover { background: #10201d; border-color: var(--accent); }
+    button.danger { color: var(--red); border-color: #4a2020; }
+    button.ghost { background: transparent; border-color: var(--border); color: var(--dim); }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--border); }
+    th { color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+    tr:hover td { background: #0d1212; }
+    .key-cell { font-family: Consolas, monospace; color: var(--accent); cursor: pointer; }
+    .badge { display: inline-block; padding: 3px 8px; border-radius: 10px; font-size: 10px; text-transform: uppercase; }
+    .badge.unused { background: #1a2a26; color: #6b9e92; }
+    .badge.active { background: #0d2e24; color: var(--accent); }
+    .badge.expired { background: #2a2418; color: #c9a227; }
+    .badge.revoked { background: #2a1818; color: var(--red); }
+    .actions { display: flex; gap: 6px; }
+    .actions button { padding: 5px 10px; font-size: 11px; }
+    #output { background: #060909; border: 1px solid var(--border); border-radius: 4px; padding: 14px; font-family: Consolas, monospace; font-size: 12px; color: var(--accent); max-height: 260px; overflow-y: auto; white-space: pre-wrap; display: none; margin-top: 14px; }
+    .login-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .login-box { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 32px; width: 380px; }
+    .login-box h1 { color: var(--accent); font-size: 20px; letter-spacing: 3px; text-align: center; margin-bottom: 8px; }
+    .login-box p { color: var(--dim); text-align: center; font-size: 12px; margin-bottom: 24px; }
+    .login-box .field { margin-bottom: 14px; }
+    .login-box button { width: 100%; }
+    .err { color: var(--red); font-size: 12px; margin-top: 10px; text-align: center; min-height: 16px; }
+    .toast { position: fixed; bottom: 24px; right: 24px; background: var(--panel); border: 1px solid var(--accent-dim); color: var(--accent); padding: 12px 20px; border-radius: 6px; font-size: 13px; opacity: 0; transition: all .25s; pointer-events: none; }
+    .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div id="loginScreen" class="login-screen">
+    <div class="login-box">
+        <h1>KEYAUTH</h1>
+        <p>painel administrativo</p>
+        <div class="field"><label>Usuário</label><input id="inUser"></div>
+        <div class="field"><label>Senha</label><input id="inPass" type="password"></div>
+        <button onclick="doLogin()">Entrar</button>
+        <div id="loginErr" class="err"></div>
+    </div>
+</div>
+
+<div id="panelScreen" style="display:none;">
+    <header>
+        <h1>(o_o) KEYAUTH</h1>
+        <div style="display:flex;gap:10px;align-items:center;">
+            <span class="ver">v1.0</span>
+            <button class="ghost" onclick="logout()" style="padding:6px 14px;font-size:12px;">Sair</button>
+        </div>
+    </header>
+    <main>
+        <div class="panel">
+            <h2>Gerar Keys</h2>
+            <div class="row">
+                <div class="field"><label>Quantidade</label><input id="genQty" type="number" value="1" min="1" max="500"></div>
+                <div class="field"><label>Plano</label>
+                    <select id="genPlan">
+                        <option>STD</option><option>PRO</option><option>VIP</option><option>LIFE</option>
+                    </select>
+                </div>
+                <div class="field"><label>Dias</label><input id="genDays" type="number" value="30" min="1"></div>
+                <div class="field" style="flex:2;"><label>Nota</label><input id="genNote" placeholder="opcional"></div>
+                <button onclick="generate()">Gerar</button>
+            </div>
+            <div id="output"></div>
+        </div>
+
+        <div class="panel">
+            <h2>Keys</h2>
+            <div class="row" style="margin-bottom:14px;">
+                <div class="field"><label>Buscar</label><input id="searchInput" oninput="loadKeys()"></div>
+                <div class="field"><label>Status</label>
+                    <select id="filterStatus" onchange="loadKeys()">
+                        <option value="">Todos</option>
+                        <option value="unused">Não usadas</option>
+                        <option value="active">Ativas</option>
+                        <option value="expired">Expiradas</option>
+                        <option value="revoked">Revogadas</option>
+                    </select>
+                </div>
+                <button class="ghost" onclick="loadKeys()">Atualizar</button>
+            </div>
+            <table>
+                <thead><tr><th>Key</th><th>Plano</th><th>Status</th><th>HWID</th><th>Expira</th><th>Ações</th></tr></thead>
+                <tbody id="keysBody"></tbody>
+            </table>
+        </div>
+    </main>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+let TOKEN = localStorage.getItem('ka_token') || '';
+
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200);}
+
+async function api(path, opts={}){
+    opts.headers = opts.headers || {};
+    if (TOKEN) opts.headers['Authorization'] = 'Bearer ' + TOKEN;
+    if (opts.body && typeof opts.body === 'object') {
+        opts.headers['Content-Type'] = 'application/json';
+        opts.body = JSON.stringify(opts.body);
+    }
+    const r = await fetch(path, opts);
+    const data = await r.json().catch(()=>({}));
+    if (!r.ok) throw new Error(data.error || 'Erro ' + r.status);
+    return data;
+}
+
+async function doLogin(){
+    const username = document.getElementById('inUser').value.trim();
+    const password = document.getElementById('inPass').value;
+    const err = document.getElementById('loginErr');
+    err.textContent = '';
+    try {
+        const { token } = await api('/api/admin/login', { method:'POST', body:{username,password} });
+        TOKEN = token;
+        localStorage.setItem('ka_token', token);
+        showPanel();
+    } catch(e){ err.textContent = e.message; }
+}
+
+function logout(){ TOKEN=''; localStorage.removeItem('ka_token'); location.reload(); }
+
+function showPanel(){
+    document.getElementById('loginScreen').style.display='none';
+    document.getElementById('panelScreen').style.display='block';
+    loadKeys();
+}
+
+async function generate(){
+    const body = {
+        quantity: parseInt(document.getElementById('genQty').value),
+        plan: document.getElementById('genPlan').value,
+        duration_days: parseInt(document.getElementById('genDays').value),
+        note: document.getElementById('genNote').value
+    };
+    try {
+        const data = await api('/api/admin/generate', { method:'POST', body });
+        const out = document.getElementById('output');
+        out.style.display='block';
+        out.textContent = data.keys.join('\n');
+        toast(data.count + ' keys geradas');
+        loadKeys();
+    } catch(e){ toast(e.message); }
+}
+
+async function loadKeys(){
+    const search = document.getElementById('searchInput').value;
+    const status = document.getElementById('filterStatus').value;
+    const qs = new URLSearchParams();
+    if (search) qs.set('search', search);
+    if (status) qs.set('status', status);
+    try {
+        const { rows } = await api('/api/admin/keys?' + qs.toString());
+        document.getElementById('keysBody').innerHTML = rows.map(r => `
+            <tr>
+                <td class="key-cell" onclick="copyKey('${r.key}')" title="clique p/ copiar">${r.key}</td>
+                <td>${r.plan}</td>
+                <td><span class="badge ${r.status}">${r.status}</span></td>
+                <td style="font-family:monospace;font-size:11px;color:#6b7a78;">${r.hwid?r.hwid.slice(0,12)+'…':'—'}</td>
+                <td style="font-size:11px;color:#6b7a78;">${r.expires_at?new Date(r.expires_at).toLocaleDateString():'—'}</td>
+                <td><div class="actions">
+                    <button class="ghost" onclick="resetKey('${r.key}')">Reset</button>
+                    <button class="danger" onclick="revokeKey('${r.key}')">Revogar</button>
+                    <button class="danger" onclick="deleteKey('${r.key}')">X</button>
+                </div></td>
+            </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;color:#6b7a78;padding:20px;">Nenhuma key</td></tr>';
+    } catch(e){ toast(e.message); }
+}
+
+function copyKey(k){ navigator.clipboard.writeText(k); toast('Copiado: '+k); }
+async function revokeKey(k){ if(!confirm('Revogar '+k+'?'))return; try{await api('/api/admin/revoke',{method:'POST',body:{key:k}});toast('Revogada');loadKeys();}catch(e){toast(e.message);} }
+async function resetKey(k){ if(!confirm('Resetar HWID de '+k+'?'))return; try{await api('/api/admin/reset',{method:'POST',body:{key:k}});toast('Resetada');loadKeys();}catch(e){toast(e.message);} }
+async function deleteKey(k){ if(!confirm('Deletar '+k+'?'))return; try{await api('/api/admin/delete/'+k,{method:'DELETE'});toast('Deletada');loadKeys();}catch(e){toast(e.message);} }
+
+if (TOKEN) api('/api/admin/keys?limit=1').then(showPanel).catch(()=>{TOKEN='';localStorage.removeItem('ka_token');});
+document.getElementById('inPass').addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });
+</script>
+</body>
+</html>
